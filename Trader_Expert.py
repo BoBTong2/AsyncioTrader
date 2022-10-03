@@ -25,7 +25,7 @@ ConToTemp = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/WebSocket
 access = "OZjdzRxBZkwevRJG31METin4EZvyO9t3Uv2G5jEi"  # access key 직접 입력
 secret = "bp9vdlMSTyogRO2O9ub9HQlxhcAuWcWJRaqxzeEc"  # secret key 직접 입력
 
-
+"""변경사항"""
 
 upbit = pyupbit.Upbit(access, secret)
 
