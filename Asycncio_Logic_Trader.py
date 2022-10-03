@@ -15,7 +15,7 @@ import logging
 import New_Logic
 from Trader_Expert import Trading_Executer, Master
 
-"""변경사항2"""
+"""나는 천재다"""
 
 ConToDB = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/UpbitDB.db", check_same_thread=False)
 ConToLogicTest = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/LogicValueTest.db", check_same_thread=False)
