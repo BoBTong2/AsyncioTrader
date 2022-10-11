@@ -3,6 +3,10 @@ import sqlite3
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.subplots as ms
+import numpy as np
+import math
+import pyupbit
+from datetime import datetime, time, date, timedelta
 
 def OneStockGraph_DirectFeed(df) :
     # df = df.tail(24*24)
@@ -212,9 +216,9 @@ if __name__ == '__main__':
                                 check_same_thread=False)
     ConToLogicDB = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/LogicDB.db")
 
-    Symbol = 'KRW-XRP'
+    Symbol = 'KRW-ETH'
 
-    df = pd.read_sql("SELECT * FROM '%s'" % (Symbol), ConToDB)
+    df = pd.read_sql("SELECT * FROM '%s'" % (Symbol), ConToLogicDB)
 
     OneStockGraph_DirectFeed(df)
 

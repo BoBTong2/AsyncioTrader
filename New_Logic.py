@@ -6,6 +6,7 @@ from datetime import datetime, time, date, timedelta
 import telegram
 import traceback
 from itertools import combinations
+from Trader_Expert import Trading_Executer
 
 # 오류(SettingWithCopyError 발생)
 pd.set_option('mode.chained_assignment', 'raise') # SettingWithCopyError
@@ -87,11 +88,14 @@ def newlogic(dic):
                     df = pd.concat([df1, df2, df3, df4, df5], axis=1)
                     df['value'] = df5[0] * df4[0]
                     df.to_sql(dic[k]['ticker'], ConToDB, if_exists='append')
+                    if sum(df['volume']) == 0:
+                        print(dic[k]['ticker'], ': Collector is Stunning!!')
+                        dic[k]['Stunned'] += 1
                 last_date += timedelta(minutes=5)
                 next_date_fr += timedelta(minutes=5)
                 next_date_to += timedelta(minutes=5)
         except:
-            print('1분봉 차트 아직 없음')
+            print(dic[k]['ticker'],': 1분봉 차트 아직 없음')
 
         # dic[k]['trade_stop'] = 0
         try:
@@ -250,12 +254,14 @@ def newlogic(dic):
                     if df.iloc[r - 20]['low'] != min(LOW20) or df.iloc[r]['low'] != min(LOW20):
                         df.loc[LOW20.idxmin(), 'Sig_BTM20'] = 1
             except:
+                df.loc[r, 'Sig_BTM20'] = None
                 pass
 
             try:
                 if df.loc[r - 1, 'MA5'] > df.loc[r - 1, 'MA20'] and df.loc[r, 'MA5'] < df.loc[r, 'MA20']:
                     df.loc[HIGH20.idxmax(), 'Sig_TOP20'] = 1
             except:
+                df.loc[r, 'Sig_TOP20'] = None
                 pass
 
             if r > 1:
@@ -405,49 +411,21 @@ def newlogic(dic):
         #         dic[k]['Buy_Price'] = BuyPrice
         #     if df.tail(1)['Trade_%s' % (position)].values[0] == -1:
         #         dic[k]['Sell_Price'] = SellPrice
-
-        if len(df) - Trend_Change_Row_after < 120:
-            Trend_Change_Row = Trend_Change_Row_mid
-        elif len(df) - Trend_Change_Row_mid < 120:
-            Trend_Change_Row = Trend_Change_Row_before
-        else:
-            Trend_Change_Row = Trend_Change_Row_after
-
-        df['lines_Foot'] = 0
-        slopes = []
-        search = df[Trend_Change_Row - 120:]
-        search = search[search['Sig_BTM20'] == 1]
-        if len(search) != 0:
-            search = search.loc[:, ['low']].copy()
-
-            if len(search.loc[search.idxmin().values[0]:]) != 0 :
-                search = search.loc[search.idxmin().values[0]:]
-                if len(search) >= 2:
-                    for i in combinations(list(range(len(search))), 2):
-                        if i[0] == 0:
-                            slope = (search.iloc[i[0]].values[0] - search.iloc[i[1]].values[0]) / (
-                                        search.iloc[i[0]].name - search.iloc[i[1]].name)
-                            slopes.append(round(slope, 4))
-                    for r in range(min(search.index.values), len(df)):
-                        df.loc[r, 'lines_Foot'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
-            elif search.loc[search.idxmax().values[0]:] != 0 :
-                search = search.loc[search.idxmax().values[0]:]
-                if len(search) >= 2:
-                    for i in combinations(list(range(len(search))), 2):
-                        if i[0] == 0:
-                            slope = (search.iloc[i[0]].values[0] - search.iloc[i[1]].values[0]) / (
-                                        search.iloc[i[0]].name - search.iloc[i[1]].name)
-                            slopes.append(round(slope, 4))
-                    for r in range(min(search.index.values), len(df)):
-                        df.loc[r, 'lines_Foot'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
+        try:
+            if len(df) - Trend_Change_Row_after < 120:
+                Trend_Change_Row = Trend_Change_Row_mid
+            elif len(df) - Trend_Change_Row_mid < 120:
+                Trend_Change_Row = Trend_Change_Row_before
             else:
-                pass
-            df['lines_Cap'] = 0
+                Trend_Change_Row = Trend_Change_Row_after
+
+            df['lines_Foot'] = 0
             slopes = []
             search = df[Trend_Change_Row - 120:]
-            search = search[search['Sig_TOP20'] == 1]
+            search = search[search['Sig_BTM20'] == 1]
             if len(search) != 0:
-                search = search.loc[:, ['high']].copy()
+                search = search.loc[:, ['low']].copy()
+
                 if len(search.loc[search.idxmin().values[0]:]) != 0 :
                     search = search.loc[search.idxmin().values[0]:]
                     if len(search) >= 2:
@@ -457,25 +435,61 @@ def newlogic(dic):
                                             search.iloc[i[0]].name - search.iloc[i[1]].name)
                                 slopes.append(round(slope, 4))
                         for r in range(min(search.index.values), len(df)):
-                            df.loc[r, 'lines_Cap'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
-                elif search.loc[search.idxmin().values[0]:] != 0 :
-                    search = search.loc[search.idxmin().values[0]:]
+                            df.loc[r, 'lines_Foot'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
+                elif search.loc[search.idxmax().values[0]:] != 0 :
+                    search = search.loc[search.idxmax().values[0]:]
                     if len(search) >= 2:
                         for i in combinations(list(range(len(search))), 2):
                             if i[0] == 0:
                                 slope = (search.iloc[i[0]].values[0] - search.iloc[i[1]].values[0]) / (
                                             search.iloc[i[0]].name - search.iloc[i[1]].name)
                                 slopes.append(round(slope, 4))
-                        for r in range(max(search.index.values), len(df)):
-                            df.loc[r, 'lines_Cap'] = max(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
+                        for r in range(min(search.index.values), len(df)):
+                            df.loc[r, 'lines_Foot'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
                 else:
                     pass
+                df['lines_Cap'] = 0
+                slopes = []
+                search = df[Trend_Change_Row - 120:]
+                search = search[search['Sig_TOP20'] == 1]
+                if len(search) != 0:
+                    search = search.loc[:, ['high']].copy()
+                    if len(search.loc[search.idxmin().values[0]:]) != 0 :
+                        search = search.loc[search.idxmin().values[0]:]
+                        if len(search) >= 2:
+                            for i in combinations(list(range(len(search))), 2):
+                                if i[0] == 0:
+                                    slope = (search.iloc[i[0]].values[0] - search.iloc[i[1]].values[0]) / (
+                                                search.iloc[i[0]].name - search.iloc[i[1]].name)
+                                    slopes.append(round(slope, 4))
+                            for r in range(min(search.index.values), len(df)):
+                                df.loc[r, 'lines_Cap'] = min(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
+                    elif search.loc[search.idxmin().values[0]:] != 0 :
+                        search = search.loc[search.idxmin().values[0]:]
+                        if len(search) >= 2:
+                            for i in combinations(list(range(len(search))), 2):
+                                if i[0] == 0:
+                                    slope = (search.iloc[i[0]].values[0] - search.iloc[i[1]].values[0]) / (
+                                                search.iloc[i[0]].name - search.iloc[i[1]].name)
+                                    slopes.append(round(slope, 4))
+                            for r in range(max(search.index.values), len(df)):
+                                df.loc[r, 'lines_Cap'] = max(slopes) * (r - search.iloc[0].name) + search.iloc[0].values[0]
+                    else:
+                        pass
+        except:
+            print('%s || Logic Setting Stopped!!'%(dic[k]['ticker']))
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text=traceback.format_exc())
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text='%s || Logic Setting Stopped!!'%(dic[k]['ticker']))
         df.to_sql(dic[k]['ticker'], ConToLogicDB, if_exists='replace')
         # print(dic[k]['ticker'], ":", 'Every 5min Calculate Complete', dic[k]['Buy_Price'], dic[k]['Sell_Price'], len(search))
 
         # WebSocketLogic.OneStockGraph_DirectFeed(df)
-    print( datetime.now(), 'Every 5min Calculate Complete', dic)
+    # print( datetime.now(), 'Every 5min Calculate Complete', dic)
+    print(datetime.now(), 'Every 5min Calculate Complete')
     return dic
+
 
 # def newlogic(dic, position):
 #
@@ -816,22 +830,19 @@ def OneMinLogic(Dict):
         TimeForDB = now - timedelta(minutes=1) + timedelta(seconds=2)
         date = datetime(TimeForDB.year, TimeForDB.month, TimeForDB.day, TimeForDB.hour, TimeForDB.minute, 0)
 
-        Trade_Volume = dic['Acc_Volume'] - dic['Temp_Volume']
-        if dic['Last_Volume'] != 0 :
-            dic['Acc_Volume'] = 0
-            dic['Temp_Volume'] = 0
-        else:
-            dic['Temp_Volume'] = dic['Acc_Volume']
-            dic['Last_Volume'] = 0
 
-        if Trade_Volume < 0 :
-            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
-                                                                                       text='이상한 수치 감지 %s : %s = %s-%s %s' % (now, Trade_Volume,
-                                                                                       dic['Acc_Volume'],
-                                                                                       dic['Temp_Volume'],
-                                                                                       tic))
+        # if dic['Last_Volume'] != 0 :
+        #     Trade_Volume = dic['Last_Volume'] + dic['Acc_Volume'] - dic['Temp_Volume']
+        #     dic['Last_Volume'] = 0
+        # else:
+        #     Trade_Volume = dic['Acc_Volume'] - dic['Temp_Volume']
+
+
+        Trade_Volume = dic['Last_Volume'] + dic['Acc_Volume'] - dic['Temp_Volume']
         dic['Temp_Volume'] = dic['Acc_Volume']
-        dic['Temp_Close'] = dic['trade_price']
+
+        if dic['Last_Volume'] != 0 :
+            dic['Last_Volume'] = 0
 
         dd = {'index': [date], 'open': [dic['open']], 'close': [dic['trade_price']], 'low': [dic['low']], 'high': [dic['high']],
               'volume': Trade_Volume, 'value': Trade_Volume * dic['trade_price']}
@@ -885,14 +896,40 @@ def OneMinLogic(Dict):
             df.loc[r, 'MA20'] = round(MA20, 4)
             df.loc[r, 'MA60'] = round(MA60, 4)
 
+            try:
+                V_LIST5 = df.iloc[r - 5:r]['volume'].values.tolist()
+                V_MA5 = sum(V_LIST5) / 5
+            except:
+                V_MA5 = None
+            try:
+                V_LIST20 = df.iloc[r - 20:r]['volume'].values.tolist()
+                V_MA20 = sum(V_LIST20) / 20
+            except:
+                V_MA20 = None
+            df.loc[r, 'V_MA5'] = round(V_MA5, 4)
+            df.loc[r, 'V_MA20'] = round(V_MA20, 4)
+
             if r > 20:
-                target5 = (sum(df.iloc[r - 19:r]['close'].values.tolist())-sum(df.iloc[r - 4:r]['close'].values.tolist())*4)/3
+                ### MA5 MA20 Dead Close ##
+                # target5 = (sum(df.iloc[r - 19:r]['close'].values.tolist ())-sum(df.iloc[r - 4:r]['close'].values.tolist())*4)/3
+                ### 실시간 MA5 Touch ###
+                target5 = sum(df.iloc[r - 4:r]['close'].values.tolist())/4
                 df.loc[r, 'target5'] = round(target5, 4)
+
+        candle = abs(dic['open'] - dic['trade_price'])
+        head_tail = dic['high'] - max([dic['open'], dic['trade_price']]) + min([dic['open'], dic['trade_price']]) -dic['low']
+
+        if dic['Trade_Mode'] != '5min' and V_MA20*2 < Trade_Volume and candle < head_tail :
+            Dict = Trading_Executer(Dict, 'Sell_Now', tic)
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text='급등주 정체구간 매도!!')
+            dic['Trade_Mode'] = '5min'
 
         df.to_sql(tic, ConToLogicDB_1Min, if_exists='replace')
         dic['Target_1min'] = df.tail(1)['target5'].values[0]
 
-    print(datetime.now(), '1min Logic Complete!!!', Dict)
+    # print(datetime.now(), '1min Logic Complete!!!', Dict)
+    print(datetime.now(), '1min Logic Complete!!!')
     return Dict
 
 if __name__ == '__main__':

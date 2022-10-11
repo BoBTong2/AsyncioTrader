@@ -1,10 +1,16 @@
 # # -*- coding: utf-8 -*-
 import sqlite3
 import pandas as pd
+import plotly.graph_objects as go
+import plotly.subplots as ms
+import numpy as np
+import math
 from datetime import datetime, time, date, timedelta
+import asyncio
 import time
 import telegram
 import traceback
+from itertools import combinations
 import WebSocketLogic
 import pyupbit
 import logging
@@ -24,6 +30,8 @@ ConToTemp = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/WebSocket
 
 access = "OZjdzRxBZkwevRJG31METin4EZvyO9t3Uv2G5jEi"  # access key 직접 입력
 secret = "bp9vdlMSTyogRO2O9ub9HQlxhcAuWcWJRaqxzeEc"  # secret key 직접 입력
+
+
 
 upbit = pyupbit.Upbit(access, secret)
 
@@ -259,6 +267,7 @@ def Master(dict, position):
                             Buy_Price = Logic_Seletctor('buy', position, df_law)
                             if Buy_Price != 0:
                                 dict = Trading_Executer(dict, 'Buy_Now', tic, Default_TradingUnit)
+                                print('초기진입')
                                 pass
                     ##### 물타기 ######
                     elif Tic_Value > 0 and Tic_Value < Maximum_investing - Tic_Value:
@@ -365,19 +374,20 @@ def Trading_Executer(dic, Action, tic, How_Much=None, Ask_Price = None):
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_photo(chat_id=1184586349, photo=open(
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", 'rb'))
-            while True:
-                print('채결 대기...')
-                time.sleep(0.2)
-                stay_time += 0.2
-                ordered_ret = upbit.get_order(ret['uuid'])
-                if ordered_ret['state'] == 'cancel':
-                    print('채결 완료!!')
-                    break
-                elif stay_time == 5 :
-                    print('체결오류')
-                    telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
-                        chat_id=1184586349, text='%s 체결오류' % (tic))
-                    break
+            # while True:
+            #     print('채결 대기... %s'%(stay_time))
+            #     time.sleep(0.2)
+            #     stay_time += 0.2
+            #     ordered_ret = upbit.get_order(ret['uuid'])
+            #     if ordered_ret['state'] == 'cancel':
+            #         print('채결 완료!!')
+            #         break
+            #     elif stay_time == 5 :
+            #         print('체결오류')
+            #         telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
+            #             chat_id=1184586349, text='%s 체결오류' % (tic))
+            #         break
+            ordered_ret = upbit.get_order(ret['uuid'])
             log_data = {'Date': [now], 'Ticker': [tic], 'Action': ['Buy'],
                         'Trade_Price': [ordered_ret['trades'][0]['price']], 'Balance': [ordered_ret['trades'][0]['volume']]}
             log_data = pd.DataFrame(log_data).copy()
@@ -429,19 +439,20 @@ def Trading_Executer(dic, Action, tic, How_Much=None, Ask_Price = None):
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_photo(chat_id=1184586349, photo=open(
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", 'rb'))
-            while True:
-                time.sleep(0.2)
-                stay_time += 0.2
-                print('채결 대기')
-                ordered_ret = upbit.get_order(ret['uuid'])
-                if ordered_ret['state'] == 'done':
-                    print('채결 확인')
-                    break
-                elif stay_time == 5 :
-                    print('체결오류')
-                    telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
-                        chat_id=1184586349, text='%s 체결오류' % (tic))
-                    break
+            # while True:
+            #     time.sleep(0.2)
+            #     stay_time += 0.2
+            #     print('채결 대기.. %s')
+            #     ordered_ret = upbit.get_order(ret['uuid'])
+            #     if ordered_ret['state'] == 'done':
+            #         print('채결 확인')
+            #         break
+            #     elif stay_time == 5 :
+            #         print('체결오류')
+            #         telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
+            #             chat_id=1184586349, text='%s 체결오류' % (tic))
+            #         break
+            ordered_ret = upbit.get_order(ret['uuid'])
             log_data = {'Date': [now], 'Ticker': [tic], 'Action': ['Sell'],
                         'Trade_Price': [ordered_ret['trades'][0]['price']], 'Balance': [ordered_ret['trades'][0]['volume']]}
             log_data = pd.DataFrame(log_data).copy()

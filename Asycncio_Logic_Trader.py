@@ -1,7 +1,17 @@
 #-*- coding: utf-8 -*-
+import WebSocketLogic
+import pandas as pd
+import datetime
+import sys
+# from OptimisticSettingSearch import MultiProcessingForSettingValue
+# from MultiprocessingForTrade import Ticker_Screening, MultiProcessingForTrade
+# from UpbitDBManager import DB_Manager
 from telegram.ext import Updater
 from telegram.ext import MessageHandler, Filters, CommandHandler
 import telegram
+import sqlite3
+import os
+import multiprocessing
 import asyncio
 import websockets
 import json
@@ -9,13 +19,13 @@ import pandas as pd
 import time
 import pyupbit
 import sqlite3
+import WebSocketLogic
 from UpbitDBManager import DB_Manager
 import traceback
 import logging
 import New_Logic
+import nest_asyncio
 from Trader_Expert import Trading_Executer, Master
-
-"""나는 천재다"""
 
 ConToDB = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/UpbitDB.db", check_same_thread=False)
 ConToLogicTest = sqlite3.connect("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/LogicValueTest.db", check_same_thread=False)
@@ -46,7 +56,7 @@ def findNearNum(exList, values):
 
 def Ticker_Screening():
     global Screen
-    print('Ticker Screening Start!!')
+    print('Ticker Screening Start!!!!')
     balance = upbit.get_balances()
     for i in range(1, len(balance)):
         Owned_list.append('KRW-%s' % balance[i]['currency'])
@@ -75,7 +85,6 @@ def Ticker_Screening():
             tickers.remove(tic)
 
     tickers.remove('KRW-BTC')
-
     Screen = pd.DataFrame()
     for tic in tickers:
         try:
@@ -88,7 +97,6 @@ def Ticker_Screening():
     Screen.reset_index(drop=True)
     Screen.set_index('ticker', inplace=True)
     Screen = Screen.sort_values(by=['value_sum'], ascending=[False])
-
 
     Screen.to_sql('Ticker_Screen', ConToTemp, if_exists='replace')
     print('Screening Complete!!')
@@ -208,11 +216,10 @@ def Ticker_Screen_Auto(count):
         dic = []
         for i in range(0, len(List)):
             dic.append(
-                {'ticker': List[i], 'Initial_Sig': 0, 'Acc_Volume': 0, 'Temp_Volume': 0, 'low': 0, 'high': 0,
-                 'open': 0,
-                 'Sell_Price': 0, 'Buy_Price': 0, 'trade_price': 0, 'trade_stop': 0,
-                 'last_order_UUID': '', 'Mean_Vol': 0,
-                 'Target_1min': 0, 'Trade_Mode': '5min', 'avg_buy_price': 0, 'balance': 0, 'Temp_min': 0, 'Temp_Close':0, 'Last_Volume' : 0})
+                {'ticker': List[i], 'Initial_Sig': 0, 'Acc_Volume': 0, 'Temp_Volume': 0,'Last_Volume' : 0, 'low': 0,
+                 'high': 0, 'open': 0, 'Sell_Price': 0, 'Buy_Price': 0, 'trade_price': 0, 'trade_stop': 0,
+                 'last_order_UUID': '', 'Mean_Vol': 0, 'Target_1min': 0, 'Trade_Mode': '5min', 'avg_buy_price': 0,
+                 'balance': 0, 'Temp_min': 0, 'UpDown' : 0})
 
         DB_Manager(List, 5, 2)
 
@@ -253,11 +260,6 @@ async def upbit_ws_client(callback):
 
             while True:
                 await callback(pd.DataFrame([json.loads(await websocket.recv())]))
-                # print(json.loads(await websocket.recv()))
-                now = datetime.datetime.now()
-                if now.hour != temp_now.hour:
-                    print('WebSocket Runner Closed!!')
-                    break
     except:
         telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349, text='WebSocket Reciever Stopped!')
         telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
@@ -439,6 +441,28 @@ async def upbit_ws_client(callback):
 #         telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
 #                                                                                    text=traceback.format_exc())
 
+def Alert_Watcher(dic):
+    global Position
+    Up_Signals = 0
+    Down_Signals = 0
+    for Dict in dic:
+        if Dict['UpDown'] == 1:
+            Up_Signals += 1
+        if Dict['UpDown'] == -1:
+            Down_Signals += 1
+        Dict['UpDown'] = 0
+    if Up_Signals >= count/2 :
+        if Position != 'Up' :
+            Position = 'Up'
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                   text='Up Position Alert!!!')
+    if Down_Signals >= count/2 :
+        if Position != 'Stop' :
+            Position = 'Stop'
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                   text='Down Position Alert!!!')
+    return dic
+
 async def Position_Selector():
     global Position
     try:
@@ -479,13 +503,12 @@ async def Position_Selector():
             df = df.drop(['close_Push', 'close_Diff', 'ma20_Push', 'ma20_Diff', 'ma20_rate'], axis=1)
             df.to_sql('Position', ConToLogicDB, if_exists='replace')
 
-            Position = df.tail(1)['position'].values[0]
-            # Position = 'Side'
+            if Position != df.tail(1)['position'].values[0]:
+                Position = df.tail(1)['position'].values[0]
+                telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                           text='Position %s 발동!!'%(Position))
 
             print('현재 포지션 :', Position)
-            if Position == 'Stop':
-                telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
-                                                                                           text='Position Stop 발동!!')
 
             now = datetime.datetime.now()
             # await asyncio.sleep(2 * 60 + 60 - now.second + 2)
@@ -510,7 +533,7 @@ async def Logic_Setting(count):
             if now.minute%5 == 0:
                 dic = New_Logic.newlogic(dic)
                 dic = Master(dic, Position)
-
+                dic = Alert_Watcher(dic)
                 balance = upbit.get_balances()
                 for i in range(1, len(balance)):
                     Owned_list.append('KRW-%s' % balance[i]['currency'])
@@ -543,11 +566,10 @@ async def response_message(Socket):
         for i in range(0, len(dic)):
 
             if dic[i]['ticker'] == Socket.loc[0]['code']:
-                dic[i]['trade_price'] = Socket.loc[0]['trade_price']
-                if dic[i]['Acc_Volume'] < Socket.loc[0]['acc_trade_volume']:
-                    dic[i]['Acc_Volume'] = Socket.loc[0]['acc_trade_volume']
-                else:
+                if dic[i]['Acc_Volume'] > Socket.loc[0]['acc_trade_volume']:
                     dic[i]['Last_Volume'] = Socket.loc[0]['acc_trade_volume']
+                dic[i]['trade_price'] = Socket.loc[0]['trade_price']
+                dic[i]['Acc_Volume'] = Socket.loc[0]['acc_trade_volume']
 
                 if dic[i]['Initial_Sig'] == 0:
                     df = pyupbit.get_ohlcv(Socket.loc[0]['code'], interval='minute1', count=200)
@@ -563,7 +585,7 @@ async def response_message(Socket):
 
                 if dic[i]['Initial_Sig'] == 1:
                     if dic[i]['Acc_Volume'] - dic[i]['Temp_Volume'] > dic[i]['Mean_Vol']*6 and dic[i]['Mean_Vol'] != 0 and dic[i]['Trade_Mode'] == '5min' and dic[i]['balance'] != 0:
-                        if Socket.loc[0]['trade_price'] >= dic[i]['Temp_Close']*1.015 :
+                        if Socket.loc[0]['trade_price'] >= dic[i]['open']*1.015 :
                             dic = Trading_Executer(dic, 'Buy_Now', dic[i]['ticker'], 30000, 0)
                             print(dic[i]['ticker'], '급등주 매수!!')
                             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
@@ -573,11 +595,11 @@ async def response_message(Socket):
                     if dic[i]['avg_buy_price'] != 0:
                         if dic[i]['Trade_Mode'] != '5min':
                             Earning_Per = (dic[i]['trade_price'] - dic[i]['avg_buy_price'])/dic[i]['avg_buy_price']
-                            if dic[i]['Trade_Mode'].replace(second=0) + datetime.timedelta(minutes=1) <= now and Socket.loc[0]['trade_price'] < dic[i]['Target_1min'] and Earning_Per > 0.03:
+                            if dic[i]['Trade_Mode'].replace(second=0) + datetime.timedelta(minutes=1) <= now and Socket.loc[0]['trade_price'] < dic[i]['Target_1min'] and Earning_Per > 0.01:
                                 dic = Trading_Executer(dic,'Sell_Now', dic[i]['ticker'])
-                                print(dic[i]['ticker'], '급등주 매도!!')
+                                print(dic[i]['ticker'], '급등주 매도!! 손익률 : %s'%(Earning_Per))
                                 telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
-                                    chat_id=1184586349, text='급등주 매도!!')
+                                    chat_id=1184586349, text='급등주 매도!! 손익률 : %s'%(Earning_Per))
                                 dic[i]['Trade_Mode'] = '5min'
 
                     if dic[i]['Trade_Mode'] == '5min':
@@ -589,12 +611,19 @@ async def response_message(Socket):
                                     chat_id=1184586349,
                                     text='%s Loss_Cut 손절주문!! 손익률:%s / 손익금액:%s' % (
                                     dic[i]['ticker'], round(Earning_Per,5), Earning_Per*dic[i]['trade_price']*dic[i]['balance']))
+                                print('손절')
                             elif Earning_Per >= Win_Cut:
                                 dic = Trading_Executer(dic,'Sell_Now', dic[i]['ticker'])
                                 telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(
                                     chat_id=1184586349,
                                     text='%s Win_Cut 익절주문!! 손익률:%s / 손익금액:%s' % (
                                     dic[i]['ticker'], round(Earning_Per,5), Earning_Per*dic[i]['trade_price']*dic[i]['balance']))
+                                print('익절')
+
+                    if Socket.loc[0]['trade_price'] >= dic[i]['open']*1.005 :
+                        dic[i]['UpDown'] = 1
+                    if Socket.loc[0]['trade_price'] <= dic[i]['open'] * 0.995 :
+                        dic[i]['UpDown'] = -1
 
                 if abs(Socket.loc[0]['trade_price']-dic[i]['trade_price'])/dic[i]['trade_price']>0.05 and dic[i]['trade_price'] != 0:
                     telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
@@ -639,6 +668,41 @@ def TelegrmaMain(token):
     # polling
     updater.start_polling()
 
+async def Reviver():
+    now = datetime.datetime.now()
+    await asyncio.sleep(300 - now.second + 30)
+    while True :
+        try:
+            now = datetime.datetime.now()
+            await asyncio.sleep(60 - now.second + 30)
+            stack = 0
+            for tic in List:
+                try:
+                    df = pd.read_sql("SELECT * FROM '%s'" % (tic), ConToTemp)
+                    if sum(df.tail(3)['volume']) == 0:
+                        print('restart due to one Stunned!!')
+                        telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                                   text='Stunned One Collector!!')
+                        os.execl(sys.executable, sys.executable, *sys.argv)
+                    if df.tail(1)['volume'].values[0] == 0:
+                        stack += 1
+                except pd.io.sql.DatabaseError :
+                    telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                               text='%s : No Table'%(tic))
+                    print(tic, 'No Table')
+                    os.execl(sys.executable, sys.executable, *sys.argv)
+            if stack >= 3 :
+                print('restart due to Some Stunneds!!')
+                telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                           text='Stunned Some Collector!!')
+                os.execl(sys.executable, sys.executable, *sys.argv)
+        except:
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text=traceback.format_exc())
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text='Reviver Stopped!!')
+            print('reviver stopped!!')
+
 def AsyncioTraderMain(count):
     global dic, List
 
@@ -676,7 +740,8 @@ def AsyncioTraderMain(count):
     for i in range(0, len(List)):
         dic.append({'ticker': List[i], 'Initial_Sig': 0, 'Acc_Volume': 0, 'Temp_Volume': 0, 'low': 0, 'high': 0, 'open': 0,
            'Sell_Price':0, 'Buy_Price':0, 'trade_price': 0, 'trade_stop': 0, 'last_order_UUID':'', 'Mean_Vol':0,
-                    'Target_1min':0, 'Trade_Mode' : '5min', 'avg_buy_price': 0, 'balance':0, 'Temp_min': 0, 'Temp_Close':0, 'Last_Volume' : 0})
+                    'Target_1min':0, 'Trade_Mode' : '5min', 'avg_buy_price': 0, 'balance':0, 'Temp_min': 0,
+                    'Last_Volume' : 0, 'UpDown' : 0})
 
     TelegrmaMain("5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk")
 
@@ -693,12 +758,13 @@ def AsyncioTraderMain(count):
     DB_Manager(List, 5, 1)
 
     tasks = [
-        # asyncio.ensure_future(upbit_ws_client(response_message)),
-        asyncio.ensure_future(WebSocketRuner()),
+        asyncio.ensure_future(upbit_ws_client(response_message)),
+        # asyncio.ensure_future(WebSocketRuner()),
         # asyncio.ensure_future(Real_Time_Trader()),
         asyncio.ensure_future(Logic_Setting(count)),
         # asyncio.ensure_future(Ticker_Screen_Auto(count)),
         asyncio.ensure_future(Position_Selector()),
+        asyncio.ensure_future(Reviver())
         # asyncio.ensure_future(min1_Logic_Setting())
         # asyncio.ensure_future(Logic_Setting(TelegrmaMain("5520527221:AAFo5NbAfbqtFmHzvsmt-KgRYW4g91pHcRU"))),
         # asyncio.ensure_future(Logic_Setting(TelegrmaMain("5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk")))

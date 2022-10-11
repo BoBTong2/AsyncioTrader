@@ -7,6 +7,7 @@ import warnings
 import traceback
 import telegram
 from datetime import datetime, time, date, timedelta
+from time import sleep
 # row 생략 없이 출력
 pd.set_option('display.max_rows', None)
 # col 생략 없이 출력
@@ -47,7 +48,10 @@ def DB_Manager(Ticker_List, Min_Unit, Term_Days = 0):
                     if len(df) != 0:
                         print(tic, '|| from :', from_date, '~ to :', str(df.tail(1).index.values[0])[:10],str(df.tail(1).index.values[0])[11:-10])
                     break
+            sleep(0.1)
         except:
+            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                       text='%s DB Manager Error!!'%(tic))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
                                                                                        text=traceback.format_exc())
             print(tic, ': DB DownLoad Failed')
