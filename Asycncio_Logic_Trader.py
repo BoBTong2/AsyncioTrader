@@ -567,7 +567,8 @@ async def response_message(Socket):
 
             if dic[i]['ticker'] == Socket.loc[0]['code']:
                 if dic[i]['Acc_Volume'] > Socket.loc[0]['acc_trade_volume']:
-                    dic[i]['Last_Volume'] = Socket.loc[0]['acc_trade_volume']
+                    dic[i]['Last_Volume'] = dic[i]['Acc_Volume']
+
                 dic[i]['trade_price'] = Socket.loc[0]['trade_price']
                 dic[i]['Acc_Volume'] = Socket.loc[0]['acc_trade_volume']
 
@@ -675,26 +676,41 @@ async def Reviver():
         try:
             now = datetime.datetime.now()
             await asyncio.sleep(60 - now.second + 30)
-            stack = 0
+            Zero_List = []
+            Stunned_List = []
             for tic in List:
                 try:
                     df = pd.read_sql("SELECT * FROM '%s'" % (tic), ConToTemp)
-                    if sum(df.tail(3)['volume']) == 0:
-                        print('restart due to one Stunned!!')
-                        telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
-                                                                                                   text='Stunned One Collector!!')
-                        os.execl(sys.executable, sys.executable, *sys.argv)
+
                     if df.tail(1)['volume'].values[0] == 0:
-                        stack += 1
+                        Zero_List.append(tic)
+
+                    if sum(df.tail(5)['volume']) == 0:
+                        Stunned_List.append(tic)
+
                 except pd.io.sql.DatabaseError :
                     telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
                                                                                                text='%s : No Table'%(tic))
                     print(tic, 'No Table')
                     os.execl(sys.executable, sys.executable, *sys.argv)
-            if stack >= 3 :
+
+            if len(Zero_List) >= count/2 :
                 print('restart due to Some Stunneds!!')
+                for t in Zero_List:
+                    cur = ConToTemp.cursor()
+                    cur.execute("DELETE FROM '%s' WHERE volume = 0" % t)
+                    ConToTemp.commit()
                 telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
-                                                                                           text='Stunned Some Collector!!')
+                                                                                           text='Stunned Some Collector!! : %s'%Zero_List)
+                os.execl(sys.executable, sys.executable, *sys.argv)
+            if len(Stunned_List) >= 1 :
+                print('restart due to one Stunned!!')
+                telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,
+                                                                                           text='Stunned One Collector!! : %s'%Stunned_List)
+                for tic in Stunned_List:
+                    cur = ConToTemp.cursor()
+                    cur.execute("DELETE FROM '%s' WHERE volume = 0" % tic)
+                    ConToTemp.commit()
                 os.execl(sys.executable, sys.executable, *sys.argv)
         except:
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').sendMessage(chat_id=1184586349,

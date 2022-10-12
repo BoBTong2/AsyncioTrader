@@ -9,7 +9,7 @@ import pyupbit
 from datetime import datetime, time, date, timedelta
 
 def OneStockGraph_DirectFeed(df) :
-    # df = df.tail(24*24)
+    df = df.tail(24*24)
     df.reset_index(drop=True)
     df.index = df['index']
     df = df.drop(['index'], axis= 1).copy()
@@ -107,7 +107,7 @@ def OneStockGraph_DirectFeed(df) :
     )
     fig.write_image("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", format="jpeg", scale=None, width=1500,
                     height=1500)
-    fig.write_html("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html")
+    # fig.write_html("C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html")
     fig.show()
 
     # # df = data.tail(48 * 24)

@@ -339,8 +339,8 @@ def Trading_Executer(dic, Action, tic, How_Much=None, Ask_Price = None):
                 chat_id=1184586349, text='%s매수주문!!!' % (tic))
             data = pd.read_sql("SELECT * FROM '%s'" % (tic), ConToLogicDB)
             WebSocketLogic.OneStockGraph_DirectFeed(data)
-            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
-                "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
+            # telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
+            #     "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_photo(chat_id=1184586349, photo=open(
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", 'rb'))
 
@@ -370,8 +370,8 @@ def Trading_Executer(dic, Action, tic, How_Much=None, Ask_Price = None):
                 chat_id=1184586349, text='%s매수주문!!!' % (tic))
             data = pd.read_sql("SELECT * FROM '%s'" % (tic), ConToLogicDB)
             WebSocketLogic.OneStockGraph_DirectFeed(data)
-            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
-                "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
+            # telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
+            #     "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_photo(chat_id=1184586349, photo=open(
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", 'rb'))
             # while True:
@@ -435,8 +435,8 @@ def Trading_Executer(dic, Action, tic, How_Much=None, Ask_Price = None):
                     text='%s 시장가 매도주문!!!' % (tic))
             data = pd.read_sql("SELECT * FROM '%s'" % (tic), ConToLogicDB)
             WebSocketLogic.OneStockGraph_DirectFeed(data)
-            telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
-                "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
+            # telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_document(chat_id=1184586349, document=open(
+            #     "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.html", 'rb'))
             telegram.Bot('5486150673:AAEBu5dvSsmNdtd5RRcKxR-yQDM0SwgpFEk').send_photo(chat_id=1184586349, photo=open(
                 "C:/Users/bbs68/PycharmProjects/Bitcoin/DB/fig.png", 'rb'))
             # while True:
